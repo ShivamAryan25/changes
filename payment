@@ -1,0 +1,471 @@
+"use client";
+
+import type React from "react";
+import { useState } from "react";
+import {
+  X,
+  CreditCard,
+  Lock,
+  CheckCircle,
+  ArrowRight,
+  Loader2,
+} from "lucide-react";
+import "./PaymentModal.css"; // Ensure this path is correct for your project structure
+
+interface Subscription {
+  id: string;
+  name: string;
+  plan: string;
+  cost: number;
+  billingCycle: "monthly" | "yearly";
+  renewalDate: string;
+  icon?: string;
+}
+
+interface PaymentModalProps {
+  subscription: Subscription;
+  onClose: () => void;
+}
+
+type PaymentStep = "payment" | "summary" | "processing" | "success";
+
+interface PaymentInfo {
+  cardNumber: string;
+  expiryDate: string;
+  cvv: string;
+  cardholderName: string;
+}
+
+const PaymentModal: React.FC<PaymentModalProps> = ({
+  subscription,
+  onClose,
+}) => {
+  const [currentStep, setCurrentStep] = useState<PaymentStep>("payment");
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({
+    cardNumber: "",
+    expiryDate: "",
+    cvv: "",
+    cardholderName: "",
+  });
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  const handleInputChange = (field: keyof PaymentInfo, value: string) => {
+    setPaymentInfo((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: "" }));
+    }
+  };
+
+  const formatCardNumber = (value: string) => {
+    const v = value.replace(/\s+/g, "").replace(/[^0-9]/gi, "");
+    const matches = v.match(/\d{4,16}/g);
+    const match = (matches && matches[0]) || "";
+    const parts = [];
+    for (let i = 0, len = match.length; i < len; i += 4) {
+      parts.push(match.substring(i, i + 4));
+    }
+    if (parts.length) {
+      return parts.join(" ");
+    } else {
+      return v;
+    }
+  };
+
+  const formatExpiryDate = (value: string) => {
+    const v = value.replace(/\D/g, "");
+    if (v.length >= 2) {
+      return v.substring(0, 2) + "/" + v.substring(2, 4);
+    }
+    return v;
+  };
+
+  const handleCardNumberChange = (value: string) => {
+    const formatted = formatCardNumber(value);
+    if (formatted.length <= 19) {
+      handleInputChange("cardNumber", formatted);
+    }
+  };
+
+  const handleExpiryChange = (value: string) => {
+    const formatted = formatExpiryDate(value);
+    if (formatted.length <= 5) {
+      handleInputChange("expiryDate", formatted);
+    }
+  };
+
+  const getCardType = (cardNumber: string) => {
+    const num = cardNumber.replace(/\D/g, "");
+    if (num.startsWith("4")) return "Visa";
+    if (num.startsWith("5") || num.startsWith("2")) return "Mastercard";
+    if (num.startsWith("3")) return "American Express";
+    return "";
+  };
+
+  const validatePayment = () => {
+    const newErrors: { [key: string]: string } = {};
+    if (!paymentInfo.cardNumber.trim())
+      newErrors.cardNumber = "Card number is required";
+    else if (paymentInfo.cardNumber.replace(/\D/g, "").length < 13)
+      newErrors.cardNumber = "Invalid card number";
+    if (!paymentInfo.expiryDate.trim())
+      newErrors.expiryDate = "Expiry date is required";
+    if (!paymentInfo.cvv.trim()) newErrors.cvv = "CVV is required";
+    if (!paymentInfo.cardholderName.trim())
+      newErrors.cardholderName = "Cardholder name is required";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleContinueToSummary = () => {
+    if (validatePayment()) {
+      setCurrentStep("summary");
+    }
+  };
+
+  const handleConfirmPayment = () => {
+    setCurrentStep("processing");
+    setTimeout(() => {
+      setCurrentStep("success");
+    }, 3000);
+  };
+
+  const renderPaymentStep = () => (
+    <div className="payment-vertical-layout">
+      {/* Subscription Info */}
+      <div className="subscription-card">
+        <div className="subscription-content">
+          <div className="subscription-info">
+            <div className="subscription-icon">{subscription.icon || "💼"}</div>
+            <div className="subscription-details">
+              <h3 className="subscription-name">{subscription.name}</h3>
+              <p className="subscription-plan">{subscription.plan}</p>
+            </div>
+          </div>
+          <div className="subscription-price">
+            <div className="price-amount">₹{subscription.cost.toFixed(2)}</div>
+            <div className="price-cycle">
+              /{subscription.billingCycle === "monthly" ? "mo" : "yr"}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Payment Form */}
+      <div className="payment-form-card">
+        <div className="card-header">
+          <div className="card-title">
+            <CreditCard className="title-icon" />
+            Payment Information
+          </div>
+        </div>
+        <div className="card-content">
+          {/* Card Number */}
+          <div className="form-group">
+            <label htmlFor="cardNumber" className="form-label">
+              Card Number *
+            </label>
+            <div className="card-input-wrapper">
+              <input
+                id="cardNumber"
+                type="text"
+                value={paymentInfo.cardNumber}
+                onChange={(e) => handleCardNumberChange(e.target.value)}
+                placeholder="1234 5678 9012 3456"
+                className={`form-input card-number-input ${
+                  errors.cardNumber ? "error" : ""
+                }`}
+              />
+              {getCardType(paymentInfo.cardNumber) && (
+                <div className="card-type-badge">
+                  {getCardType(paymentInfo.cardNumber)}
+                </div>
+              )}
+            </div>
+            {errors.cardNumber && (
+              <p className="error-message">{errors.cardNumber}</p>
+            )}
+          </div>
+
+          {/* Cardholder Name */}
+          <div className="form-group">
+            <label htmlFor="cardholderName" className="form-label">
+              Cardholder Name *
+            </label>
+            <input
+              id="cardholderName"
+              type="text"
+              value={paymentInfo.cardholderName}
+              onChange={(e) =>
+                handleInputChange("cardholderName", e.target.value)
+              }
+              placeholder="Name as shown on card"
+              className={`form-input ${errors.cardholderName ? "error" : ""}`}
+            />
+            {errors.cardholderName && (
+              <p className="error-message">{errors.cardholderName}</p>
+            )}
+          </div>
+
+          {/* Expiry and CVV - Side by side */}
+          <div className="form-row-vertical">
+            <div className="form-group">
+              <label htmlFor="expiryDate" className="form-label">
+                Expiry Date *
+              </label>
+              <input
+                id="expiryDate"
+                type="text"
+                value={paymentInfo.expiryDate}
+                onChange={(e) => handleExpiryChange(e.target.value)}
+                placeholder="MM/YY"
+                className={`form-input mono-font ${
+                  errors.expiryDate ? "error" : ""
+                }`}
+              />
+              {errors.expiryDate && (
+                <p className="error-message">{errors.expiryDate}</p>
+              )}
+            </div>
+            <div className="form-group">
+              <label htmlFor="cvv" className="form-label">
+                CVV *
+              </label>
+              <input
+                id="cvv"
+                type="text"
+                value={paymentInfo.cvv}
+                onChange={(e) =>
+                  handleInputChange("cvv", e.target.value.replace(/\D/g, ""))
+                }
+                placeholder="123"
+                maxLength={4}
+                className={`form-input mono-font ${errors.cvv ? "error" : ""}`}
+              />
+              {errors.cvv && <p className="error-message">{errors.cvv}</p>}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderSummaryStep = () => (
+    <div className="payment-vertical-layout">
+      {/* Order Details */}
+      <div className="summary-card">
+        <div className="card-header">
+          <div className="card-title">
+            <CheckCircle className="title-icon success-icon" />
+            Order Summary
+          </div>
+        </div>
+        <div className="card-content">
+          {/* Service Details */}
+          <div className="service-summary">
+            <div className="subscription-info">
+              <div className="subscription-icon">
+                {subscription.icon || "💼"}
+              </div>
+              <div className="subscription-details">
+                <h3 className="subscription-name">{subscription.name}</h3>
+                <p className="subscription-plan">{subscription.plan}</p>
+              </div>
+            </div>
+            <div className="subscription-price">
+              <div className="price-amount-summary">
+                ₹{subscription.cost.toFixed(2)}
+              </div>
+              <div className="price-cycle">
+                /{subscription.billingCycle === "monthly" ? "mo" : "yr"}
+              </div>
+            </div>
+          </div>
+
+          <div className="separator"></div>
+
+          {/* Total */}
+          <div className="total-section">
+            <div className="total-row">
+              <span>Subtotal</span>
+              <span>₹{subscription.cost.toFixed(2)}</span>
+            </div>
+            <div className="total-row">
+              <span>Tax</span>
+              <span>₹0.00</span>
+            </div>
+            <div className="separator"></div>
+            <div className="total-row final-total">
+              <span>Total</span>
+              <span>₹{subscription.cost.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Payment Method */}
+      <div className="payment-method-card">
+        <div className="card-header">
+          <div className="card-title">
+            <CreditCard className="title-icon" />
+            Payment Method
+          </div>
+        </div>
+        <div className="card-content">
+          <div className="payment-method-info">
+            <CreditCard className="payment-icon" />
+            <div className="payment-details">
+              <div className="card-number-display">
+                **** **** **** {paymentInfo.cardNumber.slice(-4)}
+              </div>
+              <div className="cardholder-name">
+                {paymentInfo.cardholderName}
+              </div>
+              <div className="expiry-date">
+                Expires {paymentInfo.expiryDate}
+              </div>
+            </div>
+            <div className="card-type-display">
+              {getCardType(paymentInfo.cardNumber)}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderProcessingStep = () => (
+    <div className="processing-container">
+      <Loader2 className="processing-spinner" />
+      <div className="processing-content">
+        <h3 className="processing-title">Processing Payment...</h3>
+        <p className="processing-text">
+          Please wait while we securely process your payment
+        </p>
+      </div>
+      <div className="processing-details-card">
+        <div className="processing-detail">
+          <span className="detail-label">Amount:</span>
+          <span className="detail-value">₹{subscription.cost.toFixed(2)}</span>
+        </div>
+        <div className="processing-detail">
+          <span className="detail-label">Service:</span>
+          <span className="detail-value">{subscription.name}</span>
+        </div>
+        <div className="processing-detail">
+          <span className="detail-label">Plan:</span>
+          <span className="detail-value">{subscription.plan}</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderSuccessStep = () => (
+    <div className="success-container">
+      <CheckCircle className="success-icon-large" />
+      <div className="success-content">
+        <h3 className="success-title">Payment Successful!</h3>
+        <p className="success-text">
+          Thank you! Your subscription payment has been processed successfully.
+        </p>
+      </div>
+      <div className="success-details-card">
+        <div className="success-details-grid-vertical">
+          <div className="success-detail">
+            <span className="detail-label">Service</span>
+            <div className="detail-value">{subscription.name}</div>
+          </div>
+          <div className="success-detail">
+            <span className="detail-label">Plan</span>
+            <div className="detail-value">{subscription.plan}</div>
+          </div>
+          <div className="success-detail">
+            <span className="detail-label">Amount Paid</span>
+            <div className="detail-value">₹{subscription.cost.toFixed(2)}</div>
+          </div>
+          <div className="success-detail">
+            <span className="detail-label">Billing Cycle</span>
+            <div className="detail-value">
+              {subscription.billingCycle === "monthly" ? "Monthly" : "Yearly"}
+            </div>
+          </div>
+        </div>
+        <div className="separator"></div>
+        <div className="success-detail">
+          <span className="detail-label">Next Billing Date</span>
+          <div className="detail-value">
+            {new Date(subscription.renewalDate).toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </div>
+        </div>
+      </div>
+      <button className="success-button" onClick={onClose}>
+        Continue to Dashboard
+      </button>
+    </div>
+  );
+
+  const renderCurrentStep = () => {
+    switch (currentStep) {
+      case "payment":
+        return renderPaymentStep();
+      case "summary":
+        return renderSummaryStep();
+      case "processing":
+        return renderProcessingStep();
+      case "success":
+        return renderSuccessStep();
+      default:
+        return renderPaymentStep();
+    }
+  };
+
+  const getFooterButton = () => {
+    switch (currentStep) {
+      case "payment":
+        return (
+          <button className="primary-button" onClick={handleContinueToSummary}>
+            <ArrowRight className="button-icon" />
+            Continue
+          </button>
+        );
+      case "summary":
+        return (
+          <button className="primary-button" onClick={handleConfirmPayment}>
+            <Lock className="button-icon" />
+            Pay ₹{subscription.cost.toFixed(2)}
+          </button>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="modal-header">
+          <h2 className="modal-title">Secure Payment</h2>
+          <button className="close-button" onClick={onClose}>
+            <X className="close-icon" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="modal-content">{renderCurrentStep()}</div>
+
+        {/* Footer */}
+        {(currentStep === "payment" || currentStep === "summary") && (
+          <div className="modal-footer">
+            <div className="footer-content">{getFooterButton()}</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default PaymentModal;
