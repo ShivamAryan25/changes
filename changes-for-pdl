@@ -1,12 +1,22 @@
-<PrimaryButton
-  id="primary-button"
-  logging={{
-    autoPayload: {
-      pageName: "PDL template component",
+const primaryButtonProp = [
+  {
+    iconAccessibilityDescription: "test",
+    id: "primary-button",
+    logging: {
+      autoPayload: {
+        pageName: "PDL template component",
+      },
+      message: "Button Clicked",
     },
-    message: "Button Clicked",
-  }}
-  onClick={() => setShowAddModal(true)}
-  text="Add Subscription"
-  variant="primary"
-/>
+    onClick: () => setShowAddModal(true),
+    text: "Add Subscription",
+    variant: "primary",
+  },
+];
+
+
+
+
+
+
+<ButtonGroup buttonProp={primaryButtonProp} />
