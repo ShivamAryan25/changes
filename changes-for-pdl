@@ -1,0 +1,23 @@
+<div className="form-group">
+  <label htmlFor="renewalDate">Next Renewal Date *</label>
+  <DatePicker
+    accessibleTextDueDate="Due Date"
+    accessibleTextIconClose="close"
+    accessibleTextIconOpen="open"
+    accessibleTextSelectedDate="selected"
+    accessibleTextTodayDate="Today"
+    analytics={{
+      componentName: 'PDL_DATEPICKER',
+      eventName: 'datePickChangeEvent',
+      productGroup: 'datePicker',
+    }}
+    id="datepicker"
+    label="Select a date"
+    name="datepicker"
+    placeholder="mm/dd/yyyy"
+    value={formData.renewalDate}
+    onChange={(date: string) =>
+      handleInputChange("renewalDate", date)
+    }
+  />
+</div>
